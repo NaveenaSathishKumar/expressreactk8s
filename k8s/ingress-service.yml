@@ -1,35 +1,57 @@
-apiVersion: admissionregistration.k8s.io/v1
-kind: ValidatingWebhookConfiguration
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
 metadata:
-  labels:
-    app.kubernetes.io/component: admission-webhook
-    app.kubernetes.io/instance: ingress-nginx
-    app.kubernetes.io/managed-by: Helm
-    app.kubernetes.io/name: ingress-nginx
-    app.kubernetes.io/part-of: ingress-nginx
-    app.kubernetes.io/version: 1.1.2
-    helm.sh/chart: ingress-nginx-4.0.18
-  name: ingress-nginx-admission
-webhooks:
-- admissionReviewVersions:
-  - v1
-  - v1beta1      #<--------- add v1beta1
-  clientConfig:
-    service:
-      name: ingress-nginx-controller-admission
-      namespace: ingress-nginx
-      path: /networking/v1/ingresses
-  failurePolicy: Fail
-  matchPolicy: Equivalent
-  name: validate.nginx.ingress.kubernetes.io
+  name: ingress-service
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$1
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    
+    
+spec:
+  tls:
+    - hosts:
+        - examples-demo.com
+        - www.examples-demo.com
+      secretName: examples-demo.com
   rules:
-  - apiGroups:
-    - networking.k8s.io
-    apiVersions:
-    - v1beta1   #<--------- change from v1 to v1beta1
-    operations:
-    - CREATE
-    - UPDATE
-    resources:
-    - ingresses
-  sideEffects: None
+  - host: examples-demo.com
+    http:
+        paths:
+          - path: "/"
+            backend:
+              service:
+                name: client-cluster-ip-service
+                port:
+                  number: 3000
+          - path: "/"
+            backend:
+              service:
+                name: server-cluster-ip-service
+                port:
+                  number: 5000
+  - host: www.examples-demo.com
+    http:
+        paths:
+          - path: "/"
+            # UPDATE PATH
+            pathType: Prefix
+            # ADD PATHTYPE
+            backend:
+              service:
+                # UPDATE SERVICE FIELDS
+                name: client-cluster-ip-service
+                port:
+                  number: 3000
+          - path: "/"
+            # UPDATE PATH
+            pathType: Prefix
+            # ADD PATHTYPE
+            backend:
+              service:
+                # UPDATE SERVICE FIELDS
+                name: server-cluster-ip-service
+                port:
+                  number: 5000   
